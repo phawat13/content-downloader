@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pipeline configs (saved server-side)
+/app/pipeline-configs/*.json

@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Content Downloader
+
+A visual web scraping pipeline builder. Define a sequence of steps to fetch, extract, transform, and save content from the web — all through a browser-based UI.
+
+## Features
+
+- **Visual Pipeline Builder** — Add, remove, and reorder steps with a drag-friendly UI
+- **Run to step** — Execute the pipeline up to any specific step for incremental testing
+- **Real-time progress** — Live logs and progress via Server-Sent Events (SSE)
+- **Pipeline configs** — Save/load pipelines to the server or export/import as JSON files
+- **Download results** — Save files to the server path or download as a ZIP archive
+
+## Pipeline Steps
+
+| Step | Description |
+|------|-------------|
+| **URL Source** | Define source URLs via pattern (e.g. `https://example.com/page-[1-100]`), a manual list, or from a previous step's output |
+| **Fetch** | HTTP fetch URLs with configurable concurrency, delay, timeout, and custom headers |
+| **Extract Content** | Extract text or HTML from a CSS selector |
+| **Extract URLs** | Extract links from a page for chained fetching |
+| **Variable Extract** | Extract named variables using CSS selectors, attributes, or regex |
+| **Translate** | Translate content using Gemini AI (configurable model, language, prompt, concurrency) |
+| **Save** | Save results to server path and/or download as ZIP, with a filename pattern |
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- [Next.js](https://nextjs.org) 16 (App Router)
+- [React](https://react.dev) 19
+- [Tailwind CSS](https://tailwindcss.com) v4
+- [Cheerio](https://cheerio.js.org) — HTML parsing for content/URL extraction
+- [Archiver](https://www.archiverjs.com) — ZIP file creation
+- TypeScript
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+├── api/
+│   ├── execute/      # SSE pipeline execution endpoint
+│   ├── download/     # ZIP download endpoint
+│   ├── save/         # Server-side file save endpoint
+│   └── pipeline-config/  # Pipeline config CRUD
+├── components/
+│   ├── PipelineBuilder.tsx   # Main pipeline UI
+│   ├── StepCard.tsx          # Individual step container
+│   ├── ExecutionPanel.tsx    # Logs, progress, and result actions
+│   ├── PipelineToolbar.tsx   # Save/load config toolbar
+│   └── steps/                # Step-specific config components
+├── lib/
+│   ├── types.ts              # Shared TypeScript types
+│   ├── pipeline-engine.ts    # Core execution logic
+│   ├── url-pattern.ts        # URL pattern expansion
+│   └── filename-pattern.ts   # Filename pattern resolution
+└── pipeline-configs/         # Saved pipeline JSON files
+```
