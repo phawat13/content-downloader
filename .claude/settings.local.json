@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install cheerio archiver)",
+      "Bash(npm install -D @types/archiver)",
+      "Bash(npm ls cheerio archiver)",
+      "Bash(npm run build)",
+      "mcp__Claude_Preview__preview_start",
+      "WebSearch"
+    ]
+  }
+}
