@@ -66,6 +66,8 @@ function createDefaultStep(type: StepType): PipelineStep {
           attribute: "href",
           baseUrl: "",
           inputField: "html",
+          urlFilter: "",
+          urlFilterIsRegex: false,
         },
       };
     case "variable-extract":

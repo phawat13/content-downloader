@@ -48,6 +48,8 @@ export interface ExtractUrlsStep extends BaseStep {
     attribute: string;
     baseUrl: string;
     inputField: "html" | "content";
+    urlFilter: string;
+    urlFilterIsRegex: boolean;
   };
 }
 

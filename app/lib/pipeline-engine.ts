@@ -402,13 +402,45 @@ function executeExtractUrls(
     }
   }
 
-  emit({
-    type: "log",
-    message: `Extracted ${newItems.length} URLs from ${items.length} pages`,
-    level: "info",
-  });
+  // Apply URL filter
+  const filter = step.config.urlFilter?.trim();
+  let filtered = newItems;
+  if (filter) {
+    if (step.config.urlFilterIsRegex) {
+      try {
+        const regex = new RegExp(filter, "i");
+        filtered = newItems.filter((item) => regex.test(item.url));
+      } catch {
+        emit({
+          type: "log",
+          message: `Invalid URL filter regex: ${filter}, skipping filter`,
+          level: "warn",
+        });
+      }
+    } else {
+      const lowerFilter = filter.toLowerCase();
+      filtered = newItems.filter((item) =>
+        item.url.toLowerCase().includes(lowerFilter)
+      );
+    }
 
-  return newItems;
+    // Re-index after filtering
+    filtered = filtered.map((item, idx) => ({ ...item, index: idx }));
+
+    emit({
+      type: "log",
+      message: `Extracted ${newItems.length} URLs, ${filtered.length} matched filter "${filter}"`,
+      level: "info",
+    });
+  } else {
+    emit({
+      type: "log",
+      message: `Extracted ${newItems.length} URLs from ${items.length} pages`,
+      level: "info",
+    });
+  }
+
+  return filtered;
 }
 
 function executeVariableExtract(

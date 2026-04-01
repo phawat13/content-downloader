@@ -44,3 +44,5 @@ next-env.d.ts
 /app/pipeline-configs/*.json
 
 /.claude
+/pipeline-configs/*.json
+/pipeline-configs/*
