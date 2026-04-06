@@ -211,6 +211,16 @@ function executeUrlSource(
       // Use the url field from each item
       urls = previousItems.map((item) => item.url).filter(Boolean);
     }
+  } else if (step.config.mode === "from-file") {
+    const files = step.config.files || [];
+    return files.map((file, index) => ({
+      index,
+      sourceUrl: `file://${file.name}`,
+      url: `file://${file.name}`,
+      html: file.content,
+      content: "",
+      variables: { _filename: file.name },
+    }));
   } else if (step.config.mode === "pattern") {
     urls = expandUrlPattern(step.config.pattern);
   } else {
@@ -230,6 +240,91 @@ function executeUrlSource(
   }));
 }
 
+async function fetchWithScroll(
+  url: string,
+  config: FetchStep["config"],
+  emit: Emit
+): Promise<string> {
+  const puppeteer = await import("puppeteer");
+  const browser = await puppeteer.default.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent("ContentDownloader/1.0");
+
+    // Set extra headers if any
+    if (Object.keys(config.headers).length > 0) {
+      await page.setExtraHTTPHeaders(config.headers);
+    }
+
+    await page.goto(url, {
+      waitUntil: "networkidle2",
+      timeout: config.timeoutMs,
+    });
+
+    // Wait for specific selector if provided
+    if (config.waitForSelector) {
+      try {
+        await page.waitForSelector(config.waitForSelector, {
+          timeout: config.timeoutMs,
+        });
+      } catch {
+        emit({
+          type: "log",
+          message: `Selector "${config.waitForSelector}" not found on ${url}, continuing...`,
+          level: "warn",
+        });
+      }
+    }
+
+    // Scroll to bottom
+    const maxScrolls = config.maxScrolls || 20;
+    const scrollDelay = config.scrollDelay || 1000;
+
+    let previousHeight = 0;
+    let scrollCount = 0;
+
+    while (scrollCount < maxScrolls) {
+      const currentHeight = await page.evaluate(
+        () => document.body.scrollHeight
+      );
+
+      if (currentHeight === previousHeight) {
+        // No new content loaded, done scrolling
+        break;
+      }
+
+      previousHeight = currentHeight;
+      await page.evaluate(() =>
+        window.scrollTo(0, document.body.scrollHeight)
+      );
+      scrollCount++;
+
+      emit({
+        type: "log",
+        message: `Scroll ${scrollCount}/${maxScrolls} on ${url} (height: ${currentHeight}px)`,
+        level: "info",
+      });
+
+      // Wait for new content to load
+      await new Promise((r) => setTimeout(r, scrollDelay));
+    }
+
+    // Scroll back to top and wait a bit for any final renders
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await new Promise((r) => setTimeout(r, 500));
+
+    const html = await page.content();
+    await page.close();
+    return html;
+  } finally {
+    await browser.close();
+  }
+}
+
 async function executeFetch(
   step: FetchStep,
   items: PipelineItem[],
@@ -237,34 +332,56 @@ async function executeFetch(
   emit: Emit
 ): Promise<PipelineItem[]> {
   const { concurrency, delayMs, timeoutMs, headers } = step.config;
+  const useScroll = step.config.scrollToBottom;
   const results: PipelineItem[] = [];
   let completed = 0;
 
-  for (let i = 0; i < items.length; i += concurrency) {
-    const batch = items.slice(i, i + concurrency);
+  if (useScroll) {
+    emit({
+      type: "log",
+      message: `Using browser mode with scroll simulation (max ${step.config.maxScrolls || 20} scrolls, ${step.config.scrollDelay || 1000}ms delay)`,
+      level: "info",
+    });
+  }
+
+  // When using scroll mode, reduce concurrency to 1 since Puppeteer is heavy
+  const effectiveConcurrency = useScroll
+    ? Math.min(concurrency, 2)
+    : concurrency;
+
+  for (let i = 0; i < items.length; i += effectiveConcurrency) {
+    const batch = items.slice(i, i + effectiveConcurrency);
 
     const batchResults = await Promise.allSettled(
       batch.map(async (item) => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
         try {
-          const response = await fetch(item.url, {
-            signal: controller.signal,
-            headers: {
-              "User-Agent": "ContentDownloader/1.0",
-              ...headers,
-            },
-          });
+          let html: string;
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+          if (useScroll) {
+            html = await fetchWithScroll(item.url, step.config, emit);
+          } else {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+              const response = await fetch(item.url, {
+                signal: controller.signal,
+                headers: {
+                  "User-Agent": "ContentDownloader/1.0",
+                  ...headers,
+                },
+              });
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+              html = await response.text();
+            } finally {
+              clearTimeout(timeout);
+            }
           }
 
-          const html = await response.text();
           emit({
             type: "log",
-            message: `Fetched ${item.url} (${(html.length / 1024).toFixed(1)} KB)`,
+            message: `Fetched ${item.url} (${(html.length / 1024).toFixed(1)} KB)${useScroll ? " [browser]" : ""}`,
             level: "info",
           });
           return { ...item, html };
@@ -281,8 +398,6 @@ async function executeFetch(
             html: "",
             variables: { ...item.variables, _error: errMsg },
           };
-        } finally {
-          clearTimeout(timeout);
         }
       })
     );
@@ -295,7 +410,7 @@ async function executeFetch(
       onProgress(completed, items.length);
     }
 
-    if (i + concurrency < items.length && delayMs > 0) {
+    if (i + effectiveConcurrency < items.length && delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }

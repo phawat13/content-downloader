@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 8300",
+    "dev": "next dev -p 8305",
     "build": "next build",
-    "start": "next start -p 8300",
+    "start": "next start -p 8305",
     "lint": "eslint"
   },
   "dependencies": {
     "archiver": "^7.0.1",
     "cheerio": "^1.2.0",
     "next": "16.1.6",
+    "puppeteer": "^24.40.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

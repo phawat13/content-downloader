@@ -15,10 +15,11 @@ export interface BaseStep {
 export interface UrlSourceStep extends BaseStep {
   type: "url-source";
   config: {
-    mode: "pattern" | "list" | "from-previous";
+    mode: "pattern" | "list" | "from-previous" | "from-file";
     pattern: string;
     urlList: string;
     fromPreviousField: "url" | "content";
+    files: Array<{ name: string; content: string }>;
   };
 }
 
@@ -29,6 +30,10 @@ export interface FetchStep extends BaseStep {
     delayMs: number;
     timeoutMs: number;
     headers: Record<string, string>;
+    scrollToBottom: boolean;
+    scrollDelay: number;
+    maxScrolls: number;
+    waitForSelector: string;
   };
 }
 

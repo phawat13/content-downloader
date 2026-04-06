@@ -38,6 +38,7 @@ function createDefaultStep(type: StepType): PipelineStep {
           pattern: "",
           urlList: "",
           fromPreviousField: "url",
+          files: [],
         },
       };
     case "fetch":
@@ -49,6 +50,10 @@ function createDefaultStep(type: StepType): PipelineStep {
           delayMs: 200,
           timeoutMs: 10000,
           headers: {},
+          scrollToBottom: false,
+          scrollDelay: 1000,
+          maxScrolls: 20,
+          waitForSelector: "",
         },
       };
     case "extract-content":

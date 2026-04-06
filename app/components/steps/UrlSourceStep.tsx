@@ -18,6 +18,7 @@ const modeBtn = (active: boolean) =>
 
 export default function UrlSourceStep({ config, onUpdate }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const htmlFileRef = useRef<HTMLInputElement>(null);
 
   const previewUrls =
     config.mode === "pattern" && config.pattern
@@ -48,6 +49,12 @@ export default function UrlSourceStep({ config, onUpdate }: Props) {
           className={modeBtn(config.mode === "list")}
         >
           URL List
+        </button>
+        <button
+          onClick={() => onUpdate({ mode: "from-file" })}
+          className={modeBtn(config.mode === "from-file")}
+        >
+          From File
         </button>
         <button
           onClick={() => onUpdate({ mode: "from-previous" })}
@@ -120,6 +127,98 @@ export default function UrlSourceStep({ config, onUpdate }: Props) {
                 : "No URLs"}
             </span>
           </div>
+        </div>
+      ) : config.mode === "from-file" ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => htmlFileRef.current?.click()}
+              className="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+            >
+              Upload Files
+            </button>
+            <input
+              ref={htmlFileRef}
+              type="file"
+              accept=".html,.htm,.txt,.xml,.json,.csv,.text"
+              multiple
+              onChange={(e) => {
+                const fileList = e.target.files;
+                if (!fileList || fileList.length === 0) return;
+                const existing = config.files || [];
+                const readers = Array.from(fileList).map(
+                  (file) =>
+                    new Promise<{ name: string; content: string }>(
+                      (resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () =>
+                          resolve({
+                            name: file.name,
+                            content: reader.result as string,
+                          });
+                        reader.readAsText(file);
+                      }
+                    )
+                );
+                Promise.all(readers).then((newFiles) => {
+                  onUpdate({ files: [...existing, ...newFiles] });
+                });
+                e.target.value = "";
+              }}
+              className="hidden"
+            />
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {(config.files || []).length} file(s) loaded
+            </span>
+          </div>
+
+          {(config.files || []).length > 0 && (
+            <div className="bg-zinc-50 dark:bg-zinc-800 rounded-md p-2 space-y-1 max-h-40 overflow-y-auto">
+              {(config.files || []).map((file, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between text-xs group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-zinc-400 w-4 text-right flex-shrink-0">
+                      {i + 1}
+                    </span>
+                    <span className="font-mono text-zinc-700 dark:text-zinc-300 truncate">
+                      {file.name}
+                    </span>
+                    <span className="text-zinc-400 flex-shrink-0">
+                      ({(file.content.length / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = (config.files || []).filter(
+                        (_, j) => j !== i
+                      );
+                      onUpdate({ files: next });
+                    }}
+                    className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity px-1 flex-shrink-0"
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(config.files || []).length > 1 && (
+            <button
+              onClick={() => onUpdate({ files: [] })}
+              className="text-xs text-red-500 hover:text-red-600 font-medium"
+            >
+              Clear all files
+            </button>
+          )}
+
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Upload HTML/text files directly. Each file becomes a pipeline
+            item with its content in the HTML field (skips Fetch step).
+          </p>
         </div>
       ) : (
         /* from-previous mode */
